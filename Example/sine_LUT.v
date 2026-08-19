@@ -1,8 +1,8 @@
 module sine_LUT #(
     parameter RESOLUTION = 16,
-    parameter AMPLITUDE = 1,
+    parameter real AMPLITUDE = 1,
     parameter real PHASE_SHIFT = 0.0,
-    parameter SAMPLES = 360
+    parameter SAMPLES = 512
 ) (
     input wire [$clog2(SAMPLES)-1:0] index,
     output wire signed [RESOLUTION-1:0] value
@@ -25,7 +25,7 @@ module sine_LUT #(
 
         for (i = 0; i < SAMPLES; i = i + 1) begin
             temp = ((2.0 * PI) / SAMPLES) * i + PHASE_SHIFT;
-            LUT[i] = AMPLITUDE * $sin(temp) * ((2**(RESOLUTION-1)) - 1);
+            LUT[i] = AMPLITUDE * $sin(temp) * ((2**(RESOLUTION-1)) - 1) + 0.5;
         end
     end
 

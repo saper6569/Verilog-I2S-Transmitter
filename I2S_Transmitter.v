@@ -47,18 +47,20 @@
 */
 
 module I2S_Transmitter
-#(	parameter WORD_SIZE   = 16,
+#(	parameter WORD_SIZE = 16,
 	parameter SAMPLE_RATE = 44_100,
-	parameter CLOCK_FREQ  = 50_000_000,
-	parameter ACC_WIDTH   = 32 // Phase-accumulator width: bigger = finer frequency resolution
+	parameter CLOCK_FREQ = 50_000_000,
+	parameter ACC_WIDTH = 32 // Phase-accumulator width: bigger = finer frequency resolution
 )
 (
-	input  wire clk,
-	input  wire [WORD_SIZE-1:0]  input_word_left,
-	input  wire [WORD_SIZE-1:0]  input_word_right,
-	output reg BCK   = 0,
-	output reg LRCK  = 0, // 0 = left, 1 = right
-	output reg DOUT  = 0,
+	input wire clk,
+	input wire reset_n,
+	// Two's-complement PCM audio samples, transmitted MSB-first.
+	input wire [WORD_SIZE-1:0] input_word_left,
+	input wire [WORD_SIZE-1:0] input_word_right,
+	output reg BCK = 0,
+	output reg LRCK = 0, // 0 = left, 1 = right
+	output reg DOUT = 0,
 	output reg left_ready = 0, // Pulses high for 1 clk when input_word_left is ready to be set.
 	output reg right_ready = 0 // Pulses high for 1 clk when input_word_right is ready to be set.
 );
@@ -83,7 +85,7 @@ module I2S_Transmitter
 	end
 
 	// Buffer for channel data
-	reg [WORD_SIZE-1:0] LEFT_WORD  = 0;
+	reg [WORD_SIZE-1:0] LEFT_WORD = 0;
 	reg [WORD_SIZE-1:0] RIGHT_WORD = 0;
 
 	reg [ACC_WIDTH-1:0] phase_acc = 0;
@@ -97,12 +99,18 @@ module I2S_Transmitter
 	wire BCK_en = phase_acc_next[ACC_WIDTH];
 
 	always @(posedge clk) begin
-		phase_acc <= phase_acc_next[ACC_WIDTH-1:0];
+		if (!reset_n) begin
+			phase_acc <= 0;
+		end else begin
+			phase_acc <= phase_acc_next[ACC_WIDTH-1:0];
+		end
 	end
 
 	// BCK toggles every BCK_en pulse (this is the actual BCK clock).
 	always @(posedge clk) begin
-		if (BCK_en) begin
+		if (!reset_n) begin
+			BCK <= 0;
+		end else if (BCK_en) begin
 			BCK <= ~BCK;
 		end
 	end
@@ -116,12 +124,19 @@ module I2S_Transmitter
 	Pulse channel ready flag for when new data can be written.
 	Update channel data before serial output.
 	*/
-	always @(posedge clk) begin
+	always @(posedge clk ) begin
 		// Reset ready for input flags.
-		left_ready  <= 1'b0;
+		left_ready <= 1'b0;
 		right_ready <= 1'b0;
 
-		if (bit_tick) begin
+		if (!reset_n) begin
+			LRCK <= 0;
+			DOUT <= 0;
+			left_ready  <= 0;
+			right_ready <= 0;
+			bit_counter <= 0;
+
+		end else if (bit_tick) begin
 			// Place MSB of the active channel's word into the output bus and left shift the word.
 			if (LRCK) begin
 				DOUT <= RIGHT_WORD[WORD_SIZE-1];
