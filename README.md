@@ -34,4 +34,4 @@ Simple customizable I²S transmitter that converts left/right audio samples into
 - 	The generated BCK, LRCK, and DOUT signals can then be connected directly to the corresponding 
   I²S inputs of an audio DAC, codec or amplifier.
 
-I provided a simple example that outputs a sine wave.
+I provided a simple example that outputs a square wave.

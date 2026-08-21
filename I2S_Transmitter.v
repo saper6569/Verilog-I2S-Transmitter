@@ -3,8 +3,9 @@
 	Date: 2026/08/17
 	License: CC0 1.0 Universal
 	
-	This module is a customizable I²S transmitter that converts left/right audio samples into a serial I²S data 
-	stream. It generates the required BCK and LRCK signals from any given system clock using a fractional phase-accumulator 
+	This module is a customizable I²S transmitter that converts left/right audio 
+	samples into a serial I²S data stream. It generates the required BCK and LRCK 
+	signals from any given system clock using a fractional phase-accumulator 
 	divider, while providing ready pulses to flag the loading of new audio samples.
 	
 	Module Parameters:
@@ -25,23 +26,27 @@
 	
 	ACC_WIDTH
 	- 	Controls the width of the phase accumulator used by the fractional clock divider.
-	- 	A larger value provides finer frequency resolution and allows the desired BCK frequency 
-		to be represented more accurately.
+	- 	A larger value provides finer frequency resolution and allows the desired 
+		BCK frequency to be represented more accurately.
 	- 	Default: 32 bits.
 	
 	How to Use the Module
-	- 	This I²S module is used by connecting the system clock and left/right audio sample inputs 
-		to the corresponding input ports and connecting BCK, LRCK, and DOUT to the I²S-compatible audio device. 
-	- 	The module should be instantiated with parameters matching the desired audio format and 
-		the FPGA system clock frequency.
-	- 	input_word_left and input_word_right inputs should contain the next left and right audio 
-		samples, respectively. **Initialize as 0 in top level to prevent on startup artifacts.
-	- 	left_ready and right_ready signals indicate when the module is ready to load a new sample; 
-		external logic should update the input when the appropriate ready signal is asserted. 
-	- 	The module automatically serializes the samples MSB-first through DOUT, generates the 
-		required BCK, and alternates LRCK between the left and right channels. 
-	- 	The generated BCK, LRCK, and DOUT signals can then be connected directly to the corresponding 
-		I²S inputs of an audio DAC, codec or amplifier.
+	- 	This I²S module is used by connecting the system clock and left/right 
+		audio sample inputs to the corresponding input ports and connecting BCK, 
+		LRCK, and DOUT to the I²S-compatible audio device. 
+	- 	The module should be instantiated with parameters matching the desired 
+		audio format and the FPGA system clock frequency.
+	- 	input_word_left and input_word_right inputs should contain the next left 
+		and right audio samples, respectively. **Initialize as 0 in top level to 
+		prevent on startup artifacts.
+	- 	left_ready and right_ready signals indicate when the module is ready to 
+		load a new sample, external logic should update the input when the 
+		corresponding ready signal is flagged. 
+	- 	The module automatically serializes the samples MSB-first through DOUT, 
+		generates the required BCK, and alternates LRCK between the left and 
+		right channels. 
+	- 	The generated BCK, LRCK, and DOUT signals can then be connected directly 
+		to the corresponding I²S inputs of an audio DAC, codec or amplifier.
 
 	I provided a simple example that outputs a sine wave.
 */
@@ -67,20 +72,28 @@ module I2S_Transmitter
 	localparam BITS_PER_CHANNEL = 32;
 
 	// BCK must toggle 2 (channels) * BITS_PER_CHANNEL * 2 (toggles/bit) times per sample period.
-	localparam real BCK_TOGGLE_FREQ = 4.0 * BITS_PER_CHANNEL * SAMPLE_RATE;
+	// Kept as a plain integer (not `real`) -- fits comfortably in 32 bits for any sane audio rate.
+	localparam integer BCK_TOGGLE_FREQ = 4 * BITS_PER_CHANNEL * SAMPLE_RATE;
 
 	// PHASE_STEP/2^ACC_WIDTH * CLOCK_FREQ ~= BCK_TOGGLE_FREQ.
-	localparam real PHASE_STEP_REAL = (BCK_TOGGLE_FREQ / CLOCK_FREQ) * (2.0 ** ACC_WIDTH);
-	localparam [ACC_WIDTH-1:0] PHASE_STEP = PHASE_STEP_REAL;
+	// Computed with pure integer/vector arithmetic in a wide (64-bit) intermediate instead of
+	// `real` + `**`, since Quartus's synthesis-time constant folder can mis-resolve the implicit
+	// real-to-vector conversion of that pattern (silently collapsing it to 0 and, with it, the
+	// entire design -- outputs "stuck at GND", 0 logic elements used).
+	localparam [63:0] PHASE_STEP_NUM = (64'd1 * BCK_TOGGLE_FREQ) << ACC_WIDTH;
+	localparam [ACC_WIDTH-1:0] PHASE_STEP = PHASE_STEP_NUM / CLOCK_FREQ;
 
 	// Elaboration-time check: hardware can't make BCK_en faster than clk itself, so CLOCK_FREQ 
 	// must exceed the required toggle rate.
 	initial begin
 		if (BCK_TOGGLE_FREQ >= CLOCK_FREQ) begin
-			$error("CLOCK_FREQ (%0d) must be greater than 4*BITS_PER_CHANNEL*SAMPLE_RATE (%0f)", CLOCK_FREQ, BCK_TOGGLE_FREQ);
+			$error("CLOCK_FREQ (%0d) must be greater than 4*BITS_PER_CHANNEL*SAMPLE_RATE (%0d)", CLOCK_FREQ, BCK_TOGGLE_FREQ);
 		end
 		if (WORD_SIZE > BITS_PER_CHANNEL) begin
 			$error("WORD_SIZE (%0d) must not exceed BITS_PER_CHANNEL (%0d)", WORD_SIZE, BITS_PER_CHANNEL);
+		end
+		if (PHASE_STEP == 0) begin
+			$error("PHASE_STEP resolved to 0 -- BCK will never toggle. Check CLOCK_FREQ/SAMPLE_RATE/ACC_WIDTH.");
 		end
 	end
 
