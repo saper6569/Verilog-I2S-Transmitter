@@ -23,10 +23,7 @@ module TopLevel_SquareTest #(
     reg [ACC_WIDTH-1:0] phase_accumulator;
     localparam [ACC_WIDTH-1:0] PHASE_INCREMENT = (FREQUENCY * (64'd1 << ACC_WIDTH)) / SAMPLE_RATE;
 
-    // ============================================================
     // I2S transmitter
-    // ============================================================
-
     I2S_Transmitter #(
         .WORD_SIZE(WORD_SIZE),
         .SAMPLE_RATE(SAMPLE_RATE),
