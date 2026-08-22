@@ -1,3 +1,9 @@
+/*
+ * Author: Sanija Perera
+ * Date: 2026/08/17
+ * License: MIT
+ */
+
 module TopLevel_SquareTest #(
     parameter WORD_SIZE = 16,
     parameter SAMPLE_RATE = 44_100,
