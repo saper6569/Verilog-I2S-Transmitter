@@ -1,7 +1,7 @@
 /*
 	Author: Sanija Perera
 	Date: 2026/08/17
-	License: CC0 1.0 Universal
+	License: MIT
 	
 	This module is a customizable I²S transmitter that converts left/right audio 
 	samples into a serial I²S data stream. It generates the required BCK and LRCK 
