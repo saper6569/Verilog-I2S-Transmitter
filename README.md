@@ -1,6 +1,8 @@
 # Verilog-I2S-Transmitter
 Simple customizable I²S transmitter that converts left/right audio samples into a serial I²S data stream. It generates the required BCK and LRCK signals from any given system clock using a fractional phase-accumulator divider, while providing ready pulses to flag the loading of new audio samples.
 
+## Tested and Confirmed Functionality on a PCM5102a I2S Board
+
 ## Module Parameters:
 ### WORD_SIZE
 - 	Controls the number of bits in each input audio sample.
